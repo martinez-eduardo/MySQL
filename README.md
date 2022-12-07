@@ -63,7 +63,7 @@ delimiter ;
 
 TryCatch en MariaDB:
 
-```mariadb
+```mysql
 DELIMITER $$
 CREATE PROCEDURE simulatrycatch( consulta TEXT )
 BEGIN
@@ -82,3 +82,49 @@ DELIMITER ;
 CALL simulatrycatch('select now()');
 CALL simulatrycatch('insert abc(d,b) values(2,3)');
 ```
+
+Funciones en MySQL:
+
+```mysql
+CREATE DATABASE DEMO;
+USE DEMO;
+CREATE TABLE EJERCICIOS(N1 DECIMAL(5,2) NOT NULL, N2 DECIMAL(5,2) NOT NULL, SIGNO CHAR(1) NOT NULL);
+INSERT EJERCICIOS(N1,N2,SIGNO)
+VALUES(2.00,3.00,'+'),(2.00,3.00,'-'),(2.00,3.00,'*'),(2.00,3.00,'/');
+DELIMITER $$
+DROP FUNCTION IF EXISTS CALCULADORA$$
+CREATE FUNCTION CALCULADORA(INPUT_N1 DECIMAL(5,2), INPUT_N2 DECIMAL(5,2), INPUT_SIGNO CHAR(1))
+RETURNS DECIMAL(5,2)
+DETERMINISTIC
+BEGIN
+DECLARE TOTAL DECIMAL(5,2);
+IF(INPUT_SIGNO = '+') THEN
+SET TOTAL = INPUT_N1 + INPUT_N2;
+ELSEIF(INPUT_SIGNO = '-') THEN
+SET TOTAL = INPUT_N1 - INPUT_N2;
+ELSEIF(INPUT_SIGNO = '*') THEN
+SET TOTAL = INPUT_N1 * INPUT_N2;
+ELSEIF(INPUT_SIGNO = '/') THEN
+SET TOTAL = INPUT_N1 / INPUT_N2;
+ELSE
+SET TOTAL = NULL;
+END IF;
+RETURN (TOTAL);
+END$$
+DELIMITER ;
+SELECT N1,SIGNO,N2, CALCULADORA(N1,N2,SIGNO) FROM EJERCICIOS;
+```
+
+Conteo de registros en MySQL:
+
+```mysql
+CREATE DATABASE migracion;
+USE migracion;
+CREATE TABLE repatriados(id_repatriados INT,nombres VARCHAR(100));
+INSERT INTO repatriados VALUES(1,'RICARDO VALLDARES'),(2,'VERONICA ARIAS'),(3,'JOSE LOPEZ');
+CREATE TABLE entrevistas(id_entrevistas INT,id_repatriados INT);
+INSERT INTO entrevistas VALUES(1,1),(2,2),(3,2),(4,3),(5,3);
+SELECT (SELECT COUNT(*) FROM entrevistas WHERE id_repatriados = r.id_repatriados) AS reincidencias, r.nombres
+FROM repatriados r;
+```
+
