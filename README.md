@@ -130,3 +130,247 @@ SELECT (SELECT COUNT(*) FROM entrevistas WHERE id_repatriados = r.id_repatriados
 FROM repatriados r;
 ```
 
+
+
+Puntero en MySQL:
+
+```mysql
+DELIMITER $$
+
+USE `retornados`$$
+
+DROP PROCEDURE IF EXISTS `valesyrecibos`$$
+
+CREATE DEFINER=`migracion`@`%` PROCEDURE `valesyrecibos`( fechainicio DATE, fechafin DATE)
+BEGIN
+	DECLARE cidusuario INT(11);
+	DECLARE idusuario1 INT(11);
+	DECLARE idusuario2 INT(11);
+	DECLARE idusuario3 INT(11);
+	DECLARE idusuario4 INT(11);
+	DECLARE idusuario5 INT(11);
+	DECLARE idusuario6 INT(11);
+	
+	DECLARE nombre1 VARCHAR(200);
+	DECLARE nombre2 VARCHAR(200);
+	DECLARE nombre3 VARCHAR(200);
+	DECLARE nombre4 VARCHAR(200);
+	DECLARE nombre5 VARCHAR(200);
+	DECLARE nombre6 VARCHAR(200);
+	
+	DECLARE finished INTEGER DEFAULT 0;
+	DECLARE sqlstring VARCHAR(4000);
+	
+	
+	-- CREAR CONSULTA DEL PUNTERO
+	DECLARE puntero 
+		CURSOR FOR 
+			SELECT DISTINCT u.idUsuario
+			FROM retornados.recibo_dinero e
+			INNER JOIN integrado.usuario u ON e.entregadoPor=u.idUsuario
+			INNER JOIN retornados.fondo_retornados f ON f.IdFondo=e.idFondo
+			WHERE e.fecha >=fechainicio AND e.fecha < DATE_ADD(fechafin, INTERVAL 1 DAY) AND e.entregado=1
+			GROUP BY e.fecha, u.idUsuario
+			ORDER BY e.fecha, u.idUsuario ASC;
+
+	-- DECLARA FIN Y CONTINUACION
+	DECLARE CONTINUE HANDLER 
+        FOR NOT FOUND SET finished = 1;
+
+	OPEN puntero;
+	getIds: LOOP
+		FETCH puntero INTO cidusuario;
+		-- select cidusuario;
+		IF finished = 1 THEN 
+			LEAVE getIds;
+		END IF;
+		IF idusuario1 IS NULL THEN
+			SELECT cidusuario INTO idusuario1;
+			SELECT CONCAT(IFNULL(u.primerNombre,''),' ',IFNULL(u.segundoNombre,''),' ',IFNULL(u.primerApellido,''),' ',IFNULL(u.segundoApellido,'')) 
+			INTO nombre1
+			FROM integrado.usuario u WHERE u.idUsuario=idusuario1;
+		ELSEIF idusuario2 IS NULL THEN
+			SELECT cidusuario INTO idusuario2;
+			SELECT CONCAT(IFNULL(u.primerNombre,''),' ',IFNULL(u.segundoNombre,''),' ',IFNULL(u.primerApellido,''),' ',IFNULL(u.segundoApellido,'')) 
+			INTO nombre2
+			FROM integrado.usuario u WHERE u.idUsuario=idusuario2;
+		ELSEIF idusuario3 IS NULL THEN
+			SELECT cidusuario INTO idusuario3;
+			SELECT CONCAT(IFNULL(u.primerNombre,''),' ',IFNULL(u.segundoNombre,''),' ',IFNULL(u.primerApellido,''),' ',IFNULL(u.segundoApellido,'')) 
+			INTO nombre3
+			FROM integrado.usuario u WHERE u.idUsuario=idusuario3;
+		ELSEIF idusuario4 IS NULL THEN
+			SELECT cidusuario INTO idusuario4;
+			SELECT CONCAT(IFNULL(u.primerNombre,''),' ',IFNULL(u.segundoNombre,''),' ',IFNULL(u.primerApellido,''),' ',IFNULL(u.segundoApellido,'')) 
+			INTO nombre4
+			FROM integrado.usuario u WHERE u.idUsuario=idusuario4;
+		ELSEIF idusuario5 IS NULL THEN
+			SELECT cidusuario INTO idusuario5;
+			SELECT CONCAT(IFNULL(u.primerNombre,''),' ',IFNULL(u.segundoNombre,''),' ',IFNULL(u.primerApellido,''),' ',IFNULL(u.segundoApellido,'')) 
+			INTO nombre5
+			FROM integrado.usuario u WHERE u.idUsuario=idusuario5;
+		ELSE
+			SELECT cidusuario INTO idusuario6;
+			SELECT CONCAT(IFNULL(u.primerNombre,''),' ',IFNULL(u.segundoNombre,''),' ',IFNULL(u.primerApellido,''),' ',IFNULL(u.segundoApellido,'')) 
+			INTO nombre6
+			FROM integrado.usuario u WHERE u.idUsuario=idusuario6;
+		END IF;
+	END LOOP getIds;
+	CLOSE puntero;
+	
+	-- SELECT idusuario1,idusuario2,idusuario3,idusuario4,idusuario5;
+	
+	-- set idusuario5 = null;
+	
+	IF idusuario1 IS NULL THEN
+		
+		SELECT CONCAT("SELECT now();") 
+		INTO sqlstring;
+		
+	ELSEIF idusuario2 IS NULL THEN
+	
+		SELECT CONCAT("SELECT  
+			f.NFondo as 'N° Vales', 
+			f.MontoAsignado 'Monto del vale', 
+			'$5.00' as 'Valor del recibo', 
+			ROUND(f.MontoAsignado/5, 0) as 'Recibos disponibles', 
+			DATE_FORMAT(e.fecha,'%d/%m/%Y') as 'Fecha', 
+			
+			(SELECT COUNT(ee.idRecibo) FROM retornados.recibo_dinero ee WHERE ee.entregado=1 AND ee.entregadoPor=",idusuario1," AND ee.fecha=e.fecha AND ee.idFondo=e.idFondo) AS '",nombre1,"',
+			
+			ROUND((f.MontoAsignado-MontoExistencia)/5,0) as 'Total recibos entregados', 
+						
+			ROUND(f.MontoExistencia/5, 0) as 'Recibos sobrantes', 
+			ROUND(f.MontoExistencia, 0) as 'Saldo restante'
+		FROM retornados.recibo_dinero e INNER JOIN integrado.usuario u ON e.entregadoPor=u.idUsuario INNER JOIN retornados.fondo_retornados f ON f.IdFondo=e.idFondo 
+		WHERE e.fecha >='",fechainicio,"' AND e.fecha < DATE_ADD('",fechafin,"', INTERVAL 1 DAY) AND e.entregado=1 
+		GROUP BY f.IdFondo, e.fecha 
+		ORDER BY e.fecha ASC") 
+		INTO sqlstring;
+		
+		PREPARE stmt FROM sqlstring;
+		EXECUTE stmt;
+		DEALLOCATE PREPARE stmt;
+	
+	ELSEIF idusuario3 IS NULL THEN
+		
+		SELECT CONCAT("SELECT  
+			f.NFondo as 'N° Vales', 
+			f.MontoAsignado 'Monto del vale', 
+			'$5.00' as 'Valor del recibo', 
+			ROUND(f.MontoAsignado/5, 0) as 'Recibos disponibles', 
+			DATE_FORMAT(e.fecha,'%d/%m/%Y') as 'Fecha', 
+			
+			(SELECT COUNT(ee.idRecibo) FROM retornados.recibo_dinero ee WHERE ee.entregado=1 AND ee.entregadoPor=",idusuario1," AND ee.fecha=e.fecha AND ee.idFondo=e.idFondo) AS '",nombre1,"',
+			(SELECT COUNT(ee.idRecibo) FROM retornados.recibo_dinero ee WHERE ee.entregado=1 AND ee.entregadoPor=",idusuario2," AND ee.fecha=e.fecha AND ee.idFondo=e.idFondo) AS '",nombre2,"',
+			
+			ROUND((f.MontoAsignado-MontoExistencia)/5,0) as 'Total recibos entregados', 
+			
+			ROUND(f.MontoExistencia/5, 0) as 'Recibos sobrantes', 
+			ROUND(f.MontoExistencia, 0) as 'Saldo restante'
+		FROM retornados.recibo_dinero e INNER JOIN integrado.usuario u ON e.entregadoPor=u.idUsuario INNER JOIN retornados.fondo_retornados f ON f.IdFondo=e.idFondo 
+		WHERE e.fecha >='",fechainicio,"' AND e.fecha < DATE_ADD('",fechafin,"', INTERVAL 1 DAY) AND e.entregado=1 
+		GROUP BY f.IdFondo, e.fecha 
+		ORDER BY e.fecha ASC") 
+		INTO sqlstring;
+		
+		PREPARE stmt FROM sqlstring;
+		EXECUTE stmt;
+		DEALLOCATE PREPARE stmt;
+	
+	ELSEIF idusuario4 IS NULL THEN
+	
+		SELECT CONCAT("SELECT  
+			f.NFondo as 'N° Vales', 
+			f.MontoAsignado 'Monto del vale', 
+			'$5.00' as 'Valor del recibo', 
+			ROUND(f.MontoAsignado/5, 0) as 'Recibos disponibles', 
+			DATE_FORMAT(e.fecha,'%d/%m/%Y') as 'Fecha', 
+			
+			(SELECT COUNT(ee.idRecibo) FROM retornados.recibo_dinero ee WHERE ee.entregado=1 AND ee.entregadoPor=",idusuario1," AND ee.fecha=e.fecha AND ee.idFondo=e.idFondo) AS '",nombre1,"',
+			(SELECT COUNT(ee.idRecibo) FROM retornados.recibo_dinero ee WHERE ee.entregado=1 AND ee.entregadoPor=",idusuario2," AND ee.fecha=e.fecha AND ee.idFondo=e.idFondo) AS '",nombre2,"',
+			(SELECT COUNT(ee.idRecibo) FROM retornados.recibo_dinero ee WHERE ee.entregado=1 AND ee.entregadoPor=",idusuario3," AND ee.fecha=e.fecha AND ee.idFondo=e.idFondo) AS '",nombre3,"',
+			
+
+				
+			ROUND((f.MontoAsignado-MontoExistencia)/5,0) as 'Total recibos entregados', 
+						
+			ROUND(f.MontoExistencia/5, 0) as 'Recibos sobrantes', 
+			ROUND(f.MontoExistencia, 0) as 'Saldo restante'
+		FROM retornados.recibo_dinero e INNER JOIN integrado.usuario u ON e.entregadoPor=u.idUsuario INNER JOIN retornados.fondo_retornados f ON f.IdFondo=e.idFondo 
+		WHERE e.fecha >='",fechainicio,"' AND e.fecha < DATE_ADD('",fechafin,"', INTERVAL 1 DAY) AND e.entregado=1 
+		GROUP BY f.IdFondo, e.fecha 
+		ORDER BY e.fecha ASC") 
+		INTO sqlstring;
+		
+		PREPARE stmt FROM sqlstring;
+		EXECUTE stmt;
+		DEALLOCATE PREPARE stmt;
+	
+	ELSEIF idusuario5 IS NULL THEN
+	
+		SELECT CONCAT("SELECT  
+			f.NFondo as 'N° Vales', 
+			f.MontoAsignado 'Monto del vale', 
+			'$5.00' as 'Valor del recibo', 
+			ROUND(f.MontoAsignado/5, 0) as 'Recibos disponibles', 
+			DATE_FORMAT(e.fecha,'%d/%m/%Y') as 'Fecha', 
+			
+			(SELECT COUNT(ee.idRecibo) FROM retornados.recibo_dinero ee WHERE ee.entregado=1 AND ee.entregadoPor=",idusuario1," AND ee.fecha=e.fecha AND ee.idFondo=e.idFondo) AS '",nombre1,"',
+			(SELECT COUNT(ee.idRecibo) FROM retornados.recibo_dinero ee WHERE ee.entregado=1 AND ee.entregadoPor=",idusuario2," AND ee.fecha=e.fecha AND ee.idFondo=e.idFondo) AS '",nombre2,"',
+			(SELECT COUNT(ee.idRecibo) FROM retornados.recibo_dinero ee WHERE ee.entregado=1 AND ee.entregadoPor=",idusuario3," AND ee.fecha=e.fecha AND ee.idFondo=e.idFondo) AS '",nombre3,"',
+			(SELECT COUNT(ee.idRecibo) FROM retornados.recibo_dinero ee WHERE ee.entregado=1 AND ee.entregadoPor=",idusuario4," AND ee.fecha=e.fecha AND ee.idFondo=e.idFondo) AS '",nombre4,"',
+			
+			ROUND((f.MontoAsignado-MontoExistencia)/5,0) as 'Total recibos entregados', 
+			
+			ROUND(f.MontoExistencia/5, 0) as 'Recibos sobrantes', 
+			ROUND(f.MontoExistencia, 0) as 'Saldo restante'
+		FROM retornados.recibo_dinero e INNER JOIN integrado.usuario u ON e.entregadoPor=u.idUsuario INNER JOIN retornados.fondo_retornados f ON f.IdFondo=e.idFondo 
+		WHERE e.fecha >='",fechainicio,"' AND e.fecha < DATE_ADD('",fechafin,"', INTERVAL 1 DAY) AND e.entregado=1 
+		GROUP BY f.IdFondo, e.fecha 
+		ORDER BY e.fecha ASC") 
+		INTO sqlstring;
+		
+		PREPARE stmt FROM sqlstring;
+		EXECUTE stmt;
+		DEALLOCATE PREPARE stmt;
+
+	ELSEIF idusuario6 IS NULL THEN
+
+		SELECT CONCAT("SELECT  
+			f.NFondo as 'N° Vales', 
+			f.MontoAsignado 'Monto del vale', 
+			'$5.00' as 'Valor del recibo', 
+			ROUND(f.MontoAsignado/5, 0) as 'Recibos disponibles', 
+			DATE_FORMAT(e.fecha,'%d/%m/%Y') as 'Fecha', 
+			
+			(SELECT COUNT(ee.idRecibo) FROM retornados.recibo_dinero ee WHERE ee.entregado=1 AND ee.entregadoPor=",idusuario1," AND ee.fecha=e.fecha AND ee.idFondo=e.idFondo) AS '",nombre1,"',
+			(SELECT COUNT(ee.idRecibo) FROM retornados.recibo_dinero ee WHERE ee.entregado=1 AND ee.entregadoPor=",idusuario2," AND ee.fecha=e.fecha AND ee.idFondo=e.idFondo) AS '",nombre2,"',
+			(SELECT COUNT(ee.idRecibo) FROM retornados.recibo_dinero ee WHERE ee.entregado=1 AND ee.entregadoPor=",idusuario3," AND ee.fecha=e.fecha AND ee.idFondo=e.idFondo) AS '",nombre3,"',
+			(SELECT COUNT(ee.idRecibo) FROM retornados.recibo_dinero ee WHERE ee.entregado=1 AND ee.entregadoPor=",idusuario4," AND ee.fecha=e.fecha AND ee.idFondo=e.idFondo) AS '",nombre4,"',
+			(SELECT COUNT(ee.idRecibo) FROM retornados.recibo_dinero ee WHERE ee.entregado=1 AND ee.entregadoPor=",idusuario5," AND ee.fecha=e.fecha AND ee.idFondo=e.idFondo) AS '",nombre5,"',
+			
+			ROUND((f.MontoAsignado-MontoExistencia)/5,0) as 'Total recibos entregados', 
+						
+			ROUND(f.MontoExistencia/5, 0) as 'Recibos sobrantes', 
+			ROUND(f.MontoExistencia, 0) as 'Saldo restante'
+		FROM retornados.recibo_dinero e INNER JOIN integrado.usuario u ON e.entregadoPor=u.idUsuario INNER JOIN retornados.fondo_retornados f ON f.IdFondo=e.idFondo 
+		WHERE e.fecha >='",fechainicio,"' AND e.fecha < DATE_ADD('",fechafin,"', INTERVAL 1 DAY) AND e.entregado=1 
+		GROUP BY f.IdFondo, e.fecha 
+		ORDER BY e.fecha ASC") 
+		INTO sqlstring;
+		
+		PREPARE stmt FROM sqlstring;
+		EXECUTE stmt;
+		DEALLOCATE PREPARE stmt;
+		
+	ELSE
+	
+		SELECT CONCAT("SELECT now();") 
+		INTO sqlstring;
+		
+	END IF;
+	
+END$$
+DELIMITER ;
+```
